@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 )
 
 func execCMD(command string, input func(in io.WriteCloser)) []string {
@@ -57,18 +58,6 @@ func getChannels() map[string]string {
 	return channels
 }
 
-func findChannel() string {
-	channels := getChannels()
-
-	channel := execCMD("fzf -m", func(in io.WriteCloser) {
-		for name := range channels {
-			fmt.Fprintln(in, name)
-		}
-	})
-
-	return channels[channel[0]]
-}
-
 func getFeed(url string) *feed {
 	resp, err := http.Get(url)
 	if err != nil {
@@ -87,27 +76,59 @@ func getFeed(url string) *feed {
 	return rss
 }
 
-func findVideo(rss *feed) string {
+func fetchVideos(rss *feed) map[string]string {
 	links := make(map[string]string, 15)
 
-	link := execCMD("fzf -m", func(in io.WriteCloser) {
-		for _, value := range rss.Entry {
-			links[value.Title] = value.Link.Href
-			fmt.Fprintln(in, value.Title)
+	for _, value := range rss.Entry {
+		links[value.Title] = value.Link.Href
+	}
+
+	return links
+}
+
+func fetchFeeds() map[string]map[string]string {
+	channels := getChannels()
+	parsedFeeds := make(map[string]map[string]string, len(channels))
+
+	var wg sync.WaitGroup
+	for name := range channels {
+		parsedFeeds[name] = fetchVideos(getFeed(channels[name]))
+
+		wg.Add(1)
+
+		go func(name string, wg *sync.WaitGroup) {
+			defer wg.Done()
+			parsedFeeds[name] = fetchVideos(getFeed(channels[name]))
+		}(name, &wg)
+	}
+	wg.Wait()
+
+	return parsedFeeds
+}
+
+func selectChannel(channels map[string]map[string]string) string {
+	channel := execCMD("fzf -m", func(in io.WriteCloser) {
+		for name := range channels {
+			fmt.Fprintln(in, name)
 		}
 	})
 
-	return links[link[0]]
+	return channel[0]
+}
+
+func selectVideo(feed map[string]string) string {
+	link := execCMD("fzf -m", func(in io.WriteCloser) {
+		for video := range feed {
+			fmt.Fprintln(in, video)
+		}
+	})
+
+	return feed[link[0]]
 }
 
 func main() {
-	// url := "https://www.youtube.com/feeds/videos.xml?channel_id=UCyzGHKIJjYT-H0x_bzP52SQ"
-	// url := "https://www.youtube.com/feeds/videos.xml?channel_id=UCrqM0Ym_NbK1fqeQG2VIohg"
-	// getFeed(url)
-
-	// getChannels()
-
-	url := getFeed(findChannel())
-	fmt.Println(findVideo(url))
-
+	feeds := fetchFeeds()
+	channel := feeds[selectChannel(feeds)]
+	video := selectVideo(channel)
+	fmt.Println(video)
 }
