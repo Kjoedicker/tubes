@@ -43,7 +43,7 @@ type feed struct {
 }
 
 func getChannels() map[string]string {
-	// TODO: make this a more dynamically defined size
+	// TODO(#1): make this a more dynamically defined size
 	channels := make(map[string]string, 100)
 
 	path := os.Getenv("TUBES")
@@ -126,6 +126,7 @@ func selectVideo(feed map[string]string) string {
 	return feed[link[0]]
 }
 
+//  TODO: fzf outputs aren't displayed in a consistent order
 func main() {
 	feeds := fetchFeeds()
 	channel := feeds[selectChannel(feeds)]
