@@ -107,7 +107,7 @@ func fetchFeeds() map[string]map[string]string {
 }
 
 func selectChannel(channels map[string]map[string]string) string {
-	channel := execCMD("fzf -m", func(in io.WriteCloser) {
+	channel := execCMD("fzf", func(in io.WriteCloser) {
 		for name := range channels {
 			fmt.Fprintln(in, name)
 		}
@@ -117,7 +117,7 @@ func selectChannel(channels map[string]map[string]string) string {
 }
 
 func selectVideo(feed map[string]string) string {
-	link := execCMD("fzf -m", func(in io.WriteCloser) {
+	link := execCMD("fzf", func(in io.WriteCloser) {
 		for video := range feed {
 			fmt.Fprintln(in, video)
 		}
