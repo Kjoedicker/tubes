@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -18,15 +19,23 @@ func execCMD(command string, input func(in io.WriteCloser)) []string {
 	if len(shell) == 0 {
 		shell = "sh"
 	}
+
 	cmd := exec.Command(shell, "-c", command)
+
 	cmd.Stderr = os.Stderr
 	in, _ := cmd.StdinPipe()
 	go func() {
 		input(in)
 		in.Close()
 	}()
+
 	result, _ := cmd.Output()
 	return strings.Split(string(result), "\n")
+}
+
+// Channels becomes a parsed xml feed
+type Channels struct {
+	channels map[string]map[int]map[string]string
 }
 
 type feed struct {
@@ -76,29 +85,29 @@ func getFeed(url string) *feed {
 	return rss
 }
 
-func fetchVideos(rss *feed) map[string]string {
-	links := make(map[string]string, 15)
+func fetchVideos(rss *feed) map[int]map[string]string {
+	links := make(map[int]map[string]string, 15)
 
-	for _, value := range rss.Entry {
-		links[value.Title] = value.Link.Href
+	for index, value := range rss.Entry {
+		links[index+1] = map[string]string{"title": value.Title, "link": value.Link.Href}
 	}
 
 	return links
 }
 
-func fetchFeeds() map[string]map[string]string {
+func fetchFeeds() *Channels {
 	channels := getChannels()
-	parsedFeeds := make(map[string]map[string]string, len(channels))
+	parsedFeeds := &Channels{
+		channels: make(map[string]map[int]map[string]string),
+	}
 
 	var wg sync.WaitGroup
 	for name := range channels {
-		parsedFeeds[name] = fetchVideos(getFeed(channels[name]))
-
 		wg.Add(1)
 
 		go func(name string, wg *sync.WaitGroup) {
 			defer wg.Done()
-			parsedFeeds[name] = fetchVideos(getFeed(channels[name]))
+			parsedFeeds.channels[name] = fetchVideos(getFeed(channels[name]))
 		}(name, &wg)
 	}
 	wg.Wait()
@@ -113,34 +122,35 @@ func exitOnNull(selection string, output []string) {
 	}
 }
 
-func selectChannel(channels map[string]map[string]string) string {
-	channel := execCMD("fzf", func(in io.WriteCloser) {
-		for name := range channels {
+func selectChannel(channel *Channels) string {
+	selectedChannel := execCMD("fzf", func(in io.WriteCloser) {
+		for name := range channel.channels {
 			fmt.Fprintln(in, name)
 		}
 	})
 
-	exitOnNull("channel", channel)
+	exitOnNull("channel", selectedChannel)
 
-	return channel[0]
+	return selectedChannel[0]
 }
 
-func selectVideo(feed map[string]string) string {
+func selectVideo(feed map[int]map[string]string) string {
 	link := execCMD("fzf", func(in io.WriteCloser) {
-		for video := range feed {
-			fmt.Fprintln(in, video)
+		for index := 1; index < len(feed); index++ {
+			fmt.Fprintln(in, index, feed[index]["title"])
 		}
 	})
 
 	exitOnNull("video", link)
 
-	return feed[link[0]]
+	video, _ := strconv.Atoi(string(link[0][0]))
+	return feed[video]["link"]
 }
 
 //  TODO(#2): fzf outputs aren't displayed in a consistent order
 func main() {
 	feeds := fetchFeeds()
-	channel := feeds[selectChannel(feeds)]
+	channel := feeds.channels[selectChannel(feeds)]
 	video := selectVideo(channel)
 	fmt.Println(video)
 }
