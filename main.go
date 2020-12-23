@@ -106,7 +106,7 @@ func fetchFeeds() map[string]map[string]string {
 	return parsedFeeds
 }
 
-func nullSelection(selection string, output []string) {
+func exitOnNull(selection string, output []string) {
 	if len(output) == 1 {
 		fmt.Printf("Invalid %v selection\n", selection)
 		os.Exit(1)
@@ -120,7 +120,7 @@ func selectChannel(channels map[string]map[string]string) string {
 		}
 	})
 
-	nullSelection("channel", channel)
+	exitOnNull("channel", channel)
 
 	return channel[0]
 }
@@ -132,7 +132,7 @@ func selectVideo(feed map[string]string) string {
 		}
 	})
 
-	nullSelection("video", link)
+	exitOnNull("video", link)
 
 	return feed[link[0]]
 }
