@@ -148,7 +148,6 @@ func selectVideo(feed map[int]map[string]string) string {
 	return feed[video]["link"]
 }
 
-//  TODO(#2): fzf outputs aren't displayed in a consistent order
 func main() {
 	feeds := fetchFeeds()
 	channel := feeds.channels[selectChannel(feeds)]
