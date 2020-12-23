@@ -134,6 +134,7 @@ func selectChannel(channel *Channels) string {
 	return selectedChannel[0]
 }
 
+// TODO(#3): enable the option to select multiple videos
 func selectVideo(feed map[int]map[string]string) string {
 	link := execCMD("fzf", func(in io.WriteCloser) {
 		for index := 1; index < len(feed); index++ {
