@@ -113,6 +113,11 @@ func selectChannel(channels map[string]map[string]string) string {
 		}
 	})
 
+	if len(channel) == 1 {
+		fmt.Println("No channel selected")
+		os.Exit(1)
+	}
+
 	return channel[0]
 }
 
