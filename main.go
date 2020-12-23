@@ -106,6 +106,13 @@ func fetchFeeds() map[string]map[string]string {
 	return parsedFeeds
 }
 
+func nullSelection(selection string, output []string) {
+	if len(output) == 1 {
+		fmt.Printf("Invalid %v selection\n", selection)
+		os.Exit(1)
+	}
+}
+
 func selectChannel(channels map[string]map[string]string) string {
 	channel := execCMD("fzf", func(in io.WriteCloser) {
 		for name := range channels {
@@ -113,10 +120,7 @@ func selectChannel(channels map[string]map[string]string) string {
 		}
 	})
 
-	if len(channel) == 1 {
-		fmt.Println("No channel selected")
-		os.Exit(1)
-	}
+	nullSelection("channel", channel)
 
 	return channel[0]
 }
@@ -127,6 +131,8 @@ func selectVideo(feed map[string]string) string {
 			fmt.Fprintln(in, video)
 		}
 	})
+
+	nullSelection("video", link)
 
 	return feed[link[0]]
 }
